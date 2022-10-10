@@ -103,6 +103,26 @@ class PatchCompressedEmbeddedPointers: public BitMapClosure {
   }
 };
 
+// Patch all the embedded oop pointers inside an archived heap region with a defined shift,
+// to remove the need to decode and encode in certain situations
+class PatchCompressedEmbeddedPointersShift: public BitMapClosure {
+  narrowOop* _start;
+  intx _delta;
+
+ public:
+  PatchCompressedEmbeddedPointersShift(narrowOop* start, intx delta) : _start(start), _delta(delta) {}
+
+  bool do_bit(size_t offset) {
+    narrowOop* p = _start + offset;
+    narrowOop v = *p;
+    narrowOop* new_v = &v + _delta;
+    assert(!CompressedOops::is_null(v), "null oops should have been filtered out at dump time");
+    oop o = ArchiveHeapLoader::decode_from_archive(v);
+    RawAccess<IS_NOT_NULL>::oop_store(p, o);
+    return true;
+  }
+};
+
 class PatchUncompressedEmbeddedPointers: public BitMapClosure {
   oop* _start;
 
@@ -132,9 +152,21 @@ void ArchiveHeapLoader::patch_embedded_pointers(MemRegion region, address oopmap
 #endif
 
   if (UseCompressedOops) {
-    PatchCompressedEmbeddedPointers patcher((narrowOop*)region.start());
-    bm.iterate(&patcher);
-  } else {
+    int delta = ArchiveHeapLoader::_narrow_oop_base - CompressedOops::base();
+    int shift = CompressedOops::shift();
+    if (ArchiveHeapLoader::_narrow_oop_shift == shift
+      && _dumptime_base_0 == __UINTPTR_MAX__ && shift <= 3 
+      && delta == ((delta >> shift) << shift)) {
+        // fast path
+        PatchCompressedEmbeddedPointersShift patcher((narrowOop*)region.start(), delta);
+        bm.iterate(&patcher);
+    }
+    else {
+      PatchCompressedEmbeddedPointers patcher((narrowOop*)region.start());
+      bm.iterate(&patcher);
+    } 
+  }
+  else {
     PatchUncompressedEmbeddedPointers patcher((oop*)region.start());
     bm.iterate(&patcher);
   }
