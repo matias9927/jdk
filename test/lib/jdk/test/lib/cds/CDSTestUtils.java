@@ -425,6 +425,7 @@ public class CDSTestUtils {
         throws Exception {
 
         ArrayList<String> cmd = opts.getRuntimePrefix();
+        //ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("-Xshare:" + opts.xShareMode);
         cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
 
@@ -599,10 +600,34 @@ public class CDSTestUtils {
         return new File(dir, name);
     }
 
+    static ArrayList<String> disabledRuntimePrefixes = new ArrayList<>();
+
+    // Do not use the command-line option s, even if it's specified in -Dtest.cds.runtime.options
+    private static void disableRuntimePrefix(String s) {
+        disabledRuntimePrefixes.add(s);
+    }
+
+    // Do not use the command-line option "-XX:+UseEpsilonGC", even if it's specified in -Dtest.cds.runtime.options
+    public static void disableRuntimePrefixForEpsilonGC() {
+        disableRuntimePrefix("-XX:+UseEpsilonGC");
+    }
 
     // ============================= Logging
     public static OutputAnalyzer executeAndLog(ProcessBuilder pb, String logName) throws Exception {
         long started = System.currentTimeMillis();
+
+        // Append runtime prefix to process arguments
+        ArrayList<String> cmdline = new ArrayList<>();
+        String jtropts = System.getProperty("test.cds.runtime.options");
+        if (jtropts != null) {
+            for (String s : jtropts.split(",")) {
+                if (!disabledRuntimePrefixes.contains(s)) {
+                    cmdline.add(s);
+                }
+            }
+        }
+        pb.command().addAll(cmdline);
+
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         String logFileNameStem =
             String.format("%04d", getNextLogCounter()) + "-" + logName;

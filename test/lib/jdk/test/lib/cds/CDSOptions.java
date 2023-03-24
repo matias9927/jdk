@@ -131,14 +131,14 @@ public class CDSOptions {
     public ArrayList<String> getRuntimePrefix() {
         ArrayList<String> cmdline = new ArrayList<>();
 
-        String jtropts = System.getProperty("test.cds.runtime.options");
-        if (jtropts != null) {
-            for (String s : jtropts.split(",")) {
-                if (!disabledRuntimePrefixes.contains(s)) {
-                    cmdline.add(s);
-                }
-            }
-        }
+        // String jtropts = System.getProperty("test.cds.runtime.options");
+        // if (jtropts != null) {
+        //     for (String s : jtropts.split(",")) {
+        //         if (!disabledRuntimePrefixes.contains(s)) {
+        //             cmdline.add(s);
+        //         }
+        //     }
+        // }
 
         for (String p : prefix) {
             cmdline.add(p);
