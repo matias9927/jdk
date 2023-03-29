@@ -424,8 +424,9 @@ public class CDSTestUtils {
     public static OutputAnalyzer runWithArchive(CDSOptions opts)
         throws Exception {
 
+        //System.exit(1);
+        System.out.println("In runWithArchive");
         ArrayList<String> cmd = opts.getRuntimePrefix();
-        //ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("-Xshare:" + opts.xShareMode);
         cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
 
@@ -600,33 +601,31 @@ public class CDSTestUtils {
         return new File(dir, name);
     }
 
-    static ArrayList<String> disabledRuntimePrefixes = new ArrayList<>();
-
-    // Do not use the command-line option s, even if it's specified in -Dtest.cds.runtime.options
-    private static void disableRuntimePrefix(String s) {
-        disabledRuntimePrefixes.add(s);
-    }
-
-    // Do not use the command-line option "-XX:+UseEpsilonGC", even if it's specified in -Dtest.cds.runtime.options
-    public static void disableRuntimePrefixForEpsilonGC() {
-        disableRuntimePrefix("-XX:+UseEpsilonGC");
-    }
-
     // ============================= Logging
     public static OutputAnalyzer executeAndLog(ProcessBuilder pb, String logName) throws Exception {
         long started = System.currentTimeMillis();
 
-        // Append runtime prefix to process arguments
+        System.out.println("Args0:" + pb.command());
+        // Append runtime property to process arguments
         ArrayList<String> cmdline = new ArrayList<>();
+        cmdline.add(pb.command().get(0));
+        // cmdline.add(pb.command().get(1));
+        // cmdline.add(pb.command().get(2));
+
         String jtropts = System.getProperty("test.cds.runtime.options");
-        if (jtropts != null) {
+        if (jtropts != null && !pb.command().contains("-Xshare:dump")) {
             for (String s : jtropts.split(",")) {
-                if (!disabledRuntimePrefixes.contains(s)) {
+                if (!CDSOptions.disabledRuntimePrefixes.contains(s)) {
+                    //pb.command().add(s);
                     cmdline.add(s);
                 }
             }
         }
-        pb.command().addAll(cmdline);
+        for (int i = 1; i < pb.command().size(); i++) {
+          cmdline.add(pb.command().get(i));
+        }
+        pb.command(cmdline);
+        //System.out.println("Args" + pb.command());
 
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         String logFileNameStem =
@@ -635,6 +634,7 @@ public class CDSTestUtils {
         File stdout = getOutputFile(logFileNameStem + ".stdout");
         File stderr = getOutputFile(logFileNameStem + ".stderr");
 
+        System.out.println("Out: " + output.getStdout());
         writeFile(stdout, output.getStdout());
         writeFile(stderr, output.getStderr());
         System.out.println("[ELAPSED: " + (System.currentTimeMillis() - started) + " ms]");

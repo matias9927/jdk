@@ -133,6 +133,7 @@ public class CDSOptions {
 
         // String jtropts = System.getProperty("test.cds.runtime.options");
         // if (jtropts != null) {
+        //   System.out.println("HEE HO");
         //     for (String s : jtropts.split(",")) {
         //         if (!disabledRuntimePrefixes.contains(s)) {
         //             cmdline.add(s);
