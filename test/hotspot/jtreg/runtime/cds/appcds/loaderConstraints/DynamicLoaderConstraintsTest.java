@@ -75,6 +75,8 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.helpers.ClassFileInstaller;
 import jdk.test.lib.Platform;
 
+import jdk.test.lib.cds.CDSOptions;
+
 public class DynamicLoaderConstraintsTest extends DynamicArchiveTestBase {
     static String mainClass = LoaderConstraintsApp.class.getName();
     static String appJar = null;
@@ -103,6 +105,7 @@ public class DynamicLoaderConstraintsTest extends DynamicArchiveTestBase {
     static boolean useZGC;
 
     public static void main(String[] args) throws Exception {
+        CDSOptions.disableRuntimePrefixForEpsilonGC();
         useCustomLoader = (args.length != 0);
         useZGC = (args.length != 0 && args[0].equals("custom-zgc"));
         runTest(DynamicLoaderConstraintsTest::doTest);

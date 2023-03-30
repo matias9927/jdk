@@ -34,8 +34,12 @@ import java.nio.file.StandardCopyOption;
 import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
@@ -424,9 +428,7 @@ public class CDSTestUtils {
     public static OutputAnalyzer runWithArchive(CDSOptions opts)
         throws Exception {
 
-        //System.exit(1);
-        System.out.println("In runWithArchive");
-        ArrayList<String> cmd = opts.getRuntimePrefix();
+        ArrayList<String> cmd = opts.prefix;
         cmd.add("-Xshare:" + opts.xShareMode);
         cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
 
@@ -601,31 +603,44 @@ public class CDSTestUtils {
         return new File(dir, name);
     }
 
+    // Check commandline for the last instance of Xshare to see if the process can load
+    // a CDS archive
+    public static boolean maybeRunningWithArchive(List<String> cmd) {
+      // -Xshare only works for the java executable
+      if (!cmd.get(0).equals(JDKToolFinder.getJDKTool("java")) || cmd.size() < 2) {
+        return false;
+      }
+
+      Pattern share = Pattern.compile("-Xshare:");
+      String lastXShare= "";
+      for (String s : cmd) {
+        Matcher m = share.matcher(s);
+        if (m.find()) {
+          lastXShare = s;
+        }
+      }
+      if (lastXShare.equals("Xshare:dump") || lastXShare.equals("Xshare:off")) {
+        return false;
+      }
+      return true;
+    }
+
     // ============================= Logging
     public static OutputAnalyzer executeAndLog(ProcessBuilder pb, String logName) throws Exception {
         long started = System.currentTimeMillis();
 
-        System.out.println("Args0:" + pb.command());
-        // Append runtime property to process arguments
-        ArrayList<String> cmdline = new ArrayList<>();
-        cmdline.add(pb.command().get(0));
-        // cmdline.add(pb.command().get(1));
-        // cmdline.add(pb.command().get(2));
-
+        // Handle and insert test.cds.runtime.options
+        List<String> cmd = pb.command();
+        ArrayList<String> cdsRuntimeOpts = new ArrayList<String>();
         String jtropts = System.getProperty("test.cds.runtime.options");
-        if (jtropts != null && !pb.command().contains("-Xshare:dump")) {
-            for (String s : jtropts.split(",")) {
-                if (!CDSOptions.disabledRuntimePrefixes.contains(s)) {
-                    //pb.command().add(s);
-                    cmdline.add(s);
-                }
-            }
+        if (jtropts != null && maybeRunningWithArchive(cmd)) {
+          for (String s : jtropts.split(",")) {
+              if (!CDSOptions.disabledRuntimePrefixes.contains(s)) {
+                  cdsRuntimeOpts.add(s);
+              }
+          }
+          pb.command().addAll(1, cdsRuntimeOpts);
         }
-        for (int i = 1; i < pb.command().size(); i++) {
-          cmdline.add(pb.command().get(i));
-        }
-        pb.command(cmdline);
-        //System.out.println("Args" + pb.command());
 
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         String logFileNameStem =
