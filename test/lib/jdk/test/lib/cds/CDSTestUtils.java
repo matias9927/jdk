@@ -612,7 +612,7 @@ public class CDSTestUtils {
       }
 
       Pattern share = Pattern.compile("-Xshare:");
-      String lastXShare= "";
+      String lastXShare = "";
       for (String s : cmd) {
         Matcher m = share.matcher(s);
         if (m.find()) {
@@ -649,7 +649,6 @@ public class CDSTestUtils {
         File stdout = getOutputFile(logFileNameStem + ".stdout");
         File stderr = getOutputFile(logFileNameStem + ".stderr");
 
-        System.out.println("Out: " + output.getStdout());
         writeFile(stdout, output.getStdout());
         writeFile(stderr, output.getStderr());
         System.out.println("[ELAPSED: " + (System.currentTimeMillis() - started) + " ms]");
