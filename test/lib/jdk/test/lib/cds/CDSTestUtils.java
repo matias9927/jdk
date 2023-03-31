@@ -428,7 +428,8 @@ public class CDSTestUtils {
     public static OutputAnalyzer runWithArchive(CDSOptions opts)
         throws Exception {
 
-        ArrayList<String> cmd = opts.prefix;
+        ArrayList<String> cmd = new ArrayList<String>();
+        cmd.addAll(opts.prefix);
         cmd.add("-Xshare:" + opts.xShareMode);
         cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
 
@@ -625,6 +626,22 @@ public class CDSTestUtils {
       return true;
     }
 
+    public static boolean isGCOption(String cmd) {
+      Pattern gc = Pattern.compile("-XX:+.*GC");
+      Matcher m = gc.matcher(cmd);
+      return m.find();
+    }
+
+    public static boolean hasGCOption(List<String> cmd) {
+      Pattern gc = Pattern.compile("-XX:+.*GC");
+      for (String s : cmd) {
+        if (isGCOption(s)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     // ============================= Logging
     public static OutputAnalyzer executeAndLog(ProcessBuilder pb, String logName) throws Exception {
         long started = System.currentTimeMillis();
@@ -634,13 +651,24 @@ public class CDSTestUtils {
         ArrayList<String> cdsRuntimeOpts = new ArrayList<String>();
         String jtropts = System.getProperty("test.cds.runtime.options");
         if (jtropts != null && maybeRunningWithArchive(cmd)) {
+          boolean hasGCOption = hasGCOption(cmd);
           for (String s : jtropts.split(",")) {
               if (!CDSOptions.disabledRuntimePrefixes.contains(s)) {
-                  cdsRuntimeOpts.add(s);
+                  if (isGCOption(s)) {
+                    if (!hasGCOption) {
+                      cdsRuntimeOpts.add(s);
+                      hasGCOption = true;
+                    }
+                  } else {
+                    cdsRuntimeOpts.add(s);
+                  }
+
               }
           }
+          System.out.println("Adding args" + cdsRuntimeOpts);
           pb.command().addAll(1, cdsRuntimeOpts);
         }
+        System.out.println("Args:" + pb.command());
 
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         String logFileNameStem =

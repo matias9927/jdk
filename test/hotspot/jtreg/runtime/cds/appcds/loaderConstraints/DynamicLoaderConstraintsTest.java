@@ -105,7 +105,6 @@ public class DynamicLoaderConstraintsTest extends DynamicArchiveTestBase {
     static boolean useZGC;
 
     public static void main(String[] args) throws Exception {
-        CDSOptions.disableRuntimePrefixForEpsilonGC();
         useCustomLoader = (args.length != 0);
         useZGC = (args.length != 0 && args[0].equals("custom-zgc"));
         runTest(DynamicLoaderConstraintsTest::doTest);
