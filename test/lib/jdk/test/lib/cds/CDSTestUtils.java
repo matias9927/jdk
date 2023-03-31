@@ -612,7 +612,7 @@ public class CDSTestUtils {
         return false;
       }
 
-      Pattern share = Pattern.compile("-Xshare:");
+      Pattern share = Pattern.compile("-Xshare:.*");
       String lastXShare = "";
       for (String s : cmd) {
         Matcher m = share.matcher(s);
@@ -620,22 +620,30 @@ public class CDSTestUtils {
           lastXShare = s;
         }
       }
-      if (lastXShare.equals("Xshare:dump") || lastXShare.equals("Xshare:off")) {
+
+      if (lastXShare.equals("-Xshare:dump") || lastXShare.equals("-Xshare:off")) {
         return false;
       }
       return true;
     }
 
-    public static boolean isGCOption(String cmd) {
+    static boolean maybeAddOption(String cmd, boolean hasGCOption, ArrayList<String> cmdline) {
       Pattern gc = Pattern.compile("-XX:+.*GC");
       Matcher m = gc.matcher(cmd);
-      return m.find();
+      if (m.find() && !hasGCOption) {
+        cmdline.add(cmd);
+        return true;
+      } else if (!m.find()) {
+        cmdline.add(cmd);
+      }
+      return hasGCOption;
     }
 
     public static boolean hasGCOption(List<String> cmd) {
       Pattern gc = Pattern.compile("-XX:+.*GC");
       for (String s : cmd) {
-        if (isGCOption(s)) {
+        Matcher m = gc.matcher(s);
+        if (m.find()) {
           return true;
         }
       }
@@ -651,24 +659,16 @@ public class CDSTestUtils {
         ArrayList<String> cdsRuntimeOpts = new ArrayList<String>();
         String jtropts = System.getProperty("test.cds.runtime.options");
         if (jtropts != null && maybeRunningWithArchive(cmd)) {
+          // There cannot be multiple GC options in the command line so some
+          // options may be ignored
           boolean hasGCOption = hasGCOption(cmd);
           for (String s : jtropts.split(",")) {
               if (!CDSOptions.disabledRuntimePrefixes.contains(s)) {
-                  if (isGCOption(s)) {
-                    if (!hasGCOption) {
-                      cdsRuntimeOpts.add(s);
-                      hasGCOption = true;
-                    }
-                  } else {
-                    cdsRuntimeOpts.add(s);
-                  }
-
+                hasGCOption = maybeAddOption(s, hasGCOption, cdsRuntimeOpts);
               }
           }
-          System.out.println("Adding args" + cdsRuntimeOpts);
           pb.command().addAll(1, cdsRuntimeOpts);
         }
-        System.out.println("Args:" + pb.command());
 
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         String logFileNameStem =
