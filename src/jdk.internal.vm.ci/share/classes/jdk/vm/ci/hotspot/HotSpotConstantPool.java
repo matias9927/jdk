@@ -879,7 +879,7 @@ public final class HotSpotConstantPool implements ConstantPool, MetaspaceHandleO
                 // invokedynamic indices are different from constant pool cache indices
                 index = decodeConstantPoolCacheIndex(cpi);
                 if (isInvokedynamicIndex(cpi)) {
-                    compilerToVM().resolveInvokeDynamicInPool(this, index);
+                    compilerToVM().resolveInvokeDynamicInPool(this, cpi);
                 }
                 break;
             }
