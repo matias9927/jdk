@@ -160,6 +160,7 @@ ArchiveBuilder::ArchiveBuilder() :
   _buffer_to_requested_delta(0),
   _rw_region("rw", MAX_SHARED_DELTA),
   _ro_region("ro", MAX_SHARED_DELTA),
+  // _dump_regions(mtClassShared),
   _ptrmap(mtClassShared),
   _rw_ptrmap(mtClassShared),
   _ro_ptrmap(mtClassShared),
@@ -171,6 +172,13 @@ ArchiveBuilder::ArchiveBuilder() :
   _estimated_metaspaceobj_bytes(0),
   _estimated_hashtable_bytes(0)
 {
+  //_dump_regions = new (mtClassShared) GrowableArray<DumpRegion>(_total_dump_regions * MAX_SHARED_DELTA, mtClassShared);
+  _dump_regions[0] = &_rw_region;
+  _dump_regions[1] = &_ro_region;
+
+  _region_bitmap_table.put(&_rw_region, &_rw_ptrmap);
+  _region_bitmap_table.put(&_ro_region, &_ro_ptrmap);
+
   _klasses = new (mtClassShared) GrowableArray<Klass*>(4 * K, mtClassShared);
   _symbols = new (mtClassShared) GrowableArray<Symbol*>(256 * K, mtClassShared);
   _entropy_seed = 0x12345678;
@@ -888,17 +896,19 @@ class RelocateBufferToRequested : public BitMapClosure {
   intx _buffer_to_requested_delta;
   intx _mapped_to_requested_static_archive_delta;
   size_t _max_non_null_offset;
+  CHeapBitMap* _ptrmap;
 
  public:
-  RelocateBufferToRequested(ArchiveBuilder* builder) {
+  RelocateBufferToRequested(ArchiveBuilder* builder, CHeapBitMap* ptrmap, DumpRegion* region) {
     _builder = builder;
-    _buffer_bottom = _builder->buffer_bottom();
+    _buffer_bottom = (address)region->base();
     _buffer_to_requested_delta = builder->buffer_to_requested_delta();
     _mapped_to_requested_static_archive_delta = builder->requested_static_archive_bottom() - builder->mapped_static_archive_bottom();
     _max_non_null_offset = 0;
+    _ptrmap = ptrmap;
 
-    address bottom = _builder->buffer_bottom();
-    address top = _builder->buffer_top();
+    address bottom = (address)region->base();
+    address top = (address)region->top(); //_builder->buffer_top();
     address new_bottom = bottom + _buffer_to_requested_delta;
     address new_top = top + _buffer_to_requested_delta;
     log_debug(cds)("Relocating archive from [" INTPTR_FORMAT " - " INTPTR_FORMAT "] to "
@@ -913,7 +923,7 @@ class RelocateBufferToRequested : public BitMapClosure {
 
     if (*p == nullptr) {
       // todo -- clear bit, etc
-      ArchivePtrMarker::ptrmap()->clear_bit(offset);
+      _ptrmap->clear_bit(offset);
     } else {
       if (STATIC_DUMP) {
         assert(_builder->is_in_buffer_space(*p), "old pointer must point inside buffer space");
@@ -936,8 +946,8 @@ class RelocateBufferToRequested : public BitMapClosure {
   }
 
   void doit() {
-    ArchivePtrMarker::ptrmap()->iterate(this);
-    ArchivePtrMarker::compact(_max_non_null_offset);
+    _ptrmap->iterate(this);
+    ArchivePtrMarker::compact(_ptrmap, _max_non_null_offset);
   }
 };
 
@@ -949,13 +959,21 @@ void ArchiveBuilder::relocate_to_requested() {
 
   if (CDSConfig::is_dumping_static_archive()) {
     _requested_static_archive_top = _requested_static_archive_bottom + my_archive_size;
-    RelocateBufferToRequested<true> patcher(this);
-    patcher.doit();
+    for (DumpRegion* region : _dump_regions) {
+      CHeapBitMap* ptrmap = *(_region_bitmap_table.get(region));
+      tty->print_cr("Relocating %s", region->name());
+      RelocateBufferToRequested<true> patcher(this, ptrmap, region);
+      patcher.doit();
+    }
   } else {
     assert(CDSConfig::is_dumping_dynamic_archive(), "must be");
     _requested_dynamic_archive_top = _requested_dynamic_archive_bottom + my_archive_size;
-    RelocateBufferToRequested<false> patcher(this);
-    patcher.doit();
+    for (DumpRegion* region : _dump_regions) {
+      CHeapBitMap* ptrmap = *(_region_bitmap_table.get(region));
+      tty->print_cr("Relocating %s", region->name());
+      RelocateBufferToRequested<false> patcher(this, ptrmap, region);
+      patcher.doit();
+    }
   }
 }
 
@@ -1312,6 +1330,7 @@ void ArchiveBuilder::write_archive(FileMapInfo* mapinfo, ArchiveHeapInfo* heap_i
 
   // Split pointer map into read-write and read-only bitmaps
   ArchivePtrMarker::initialize_rw_ro_maps(&_rw_ptrmap, &_ro_ptrmap);
+  relocate_to_requested();
 
   size_t bitmap_size_in_bytes;
   char* bitmap = mapinfo->write_bitmap_region(ArchivePtrMarker::rw_ptrmap(), ArchivePtrMarker::ro_ptrmap(), heap_info,

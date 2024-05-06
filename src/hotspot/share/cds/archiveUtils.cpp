@@ -170,16 +170,17 @@ public:
   size_t max_non_null_offset() const { return _max_non_null_offset; }
 };
 
-void ArchivePtrMarker::compact(address relocatable_base, address relocatable_end) {
-  assert(!_compacted, "cannot compact again");
-  ArchivePtrBitmapCleaner cleaner(_ptrmap, ptr_base(), relocatable_base, relocatable_end);
-  _ptrmap->iterate(&cleaner);
-  compact(cleaner.max_non_null_offset());
-}
+// void ArchivePtrMarker::compact(address relocatable_base, address relocatable_end) {
+//   assert(!_compacted, "cannot compact again");
+//   ArchivePtrBitmapCleaner cleaner(_ptrmap, ptr_base(), relocatable_base, relocatable_end);
+//   _ptrmap->iterate(&cleaner);
+//   compact(cleaner.max_non_null_offset());
+// }
 
-void ArchivePtrMarker::compact(size_t max_non_null_offset) {
-  assert(!_compacted, "cannot compact again");
-  _ptrmap->resize(max_non_null_offset + 1);
+void ArchivePtrMarker::compact(CHeapBitMap* ptrmap, size_t max_non_null_offset) {
+  //assert(!_compacted, "cannot compact again");
+  tty->print_cr("Compacted %ld -> %ld (%ld)", ptrmap->size(), max_non_null_offset+1, ptrmap->size() - max_non_null_offset+1);
+  ptrmap->resize(max_non_null_offset + 1);
   _compacted = true;
 }
 

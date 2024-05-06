@@ -59,7 +59,7 @@ public:
   static void mark_pointer(address* ptr_loc);
   static void clear_pointer(address* ptr_loc);
   static void compact(address relocatable_base, address relocatable_end);
-  static void compact(size_t max_non_null_offset);
+  static void compact(CHeapBitMap* ptrmap, size_t max_non_null_offset);
 
   template <typename T>
   static void mark_pointer(T* ptr_loc) {
@@ -157,6 +157,9 @@ public:
   DumpRegion(const char* name, uintx max_delta = 0)
     : _name(name), _base(nullptr), _top(nullptr), _end(nullptr),
       _max_delta(max_delta), _is_packed(false) {}
+  DumpRegion()
+   : _name(nullptr), _base(nullptr), _top(nullptr), _end(nullptr),
+     _max_delta(0), _is_packed(false) {}
 
   char* expand_top_to(char* newtop);
   char* allocate(size_t num_bytes);
@@ -172,6 +175,7 @@ public:
   bool is_allocatable() const {
     return !is_packed() && _base != nullptr;
   }
+  const char* name() const { return _name; }
 
   void print(size_t total_bytes) const;
   void print_out_of_space_msg(const char* failing_region, size_t needed_bytes);

@@ -212,6 +212,11 @@ private:
   DumpRegion _rw_region;
   DumpRegion _ro_region;
 
+  // Two dump regions: read-write (rw) and read-only (ro)
+  //GrowableArray<DumpRegion>* _dump_regions;
+  DumpRegion* _dump_regions[2];
+  ResourceHashtable<DumpRegion*, CHeapBitMap*, 15889, AnyObj::C_HEAP, mtClassShared> _region_bitmap_table;
+
   // Combined bitmap to track pointers in both RW and RO regions. This is updated
   // as objects are copied into RW and RO.
   CHeapBitMap _ptrmap;

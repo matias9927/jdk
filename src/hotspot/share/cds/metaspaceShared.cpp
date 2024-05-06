@@ -534,7 +534,7 @@ void VM_PopulateDumpSharedSpace::doit() {
 
   // relocate the data so that it can be mapped to MetaspaceShared::requested_base_address()
   // without runtime relocation.
-  builder.relocate_to_requested();
+  // builder.relocate_to_requested();
 
   // Write the archive file
   const char* static_archive = CDSConfig::static_archive_path();
