@@ -242,23 +242,23 @@ StackMapFrame* StackMapReader::next(TRAPS) {
   return frame;
 }
 
-// StackMapFrame* StackMapReader::parse_frame_1(u2 frame_type,
-//                                              u1 frame_start,
-//                                              u1 flags,
-//                                              int locals_size,
-//                                              int stack_size,
-//                                              VerificationType* locals,
-//                                              bool can_share_locals,
-//                                              TRAPS) {
 StackMapFrame* StackMapReader::parse_frame_1(u2 frame_type,
                                              u1 frame_start,
-                                             bool new_stack,
-                                             bool can_share_locals,
-                                             VerificationType* locals,
-                                             int locals_size,
                                              u1 flags,
+                                             int locals_size,
                                              int stack_size,
+                                             VerificationType* locals,
+                                             bool can_share_locals,
                                              TRAPS) {
+// StackMapFrame* StackMapReader::parse_frame_1(u2 frame_type,
+//                                              u1 frame_start,
+//                                              bool new_stack,
+//                                              bool can_share_locals,
+//                                              VerificationType* locals,
+//                                              int locals_size,
+//                                              u1 flags,
+//                                              int stack_size,
+//                                              TRAPS) {
   int offset;
   VerificationType* stack = nullptr;
   int real_stack_size = 0;
@@ -314,24 +314,22 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     // same_frame
     return parse_frame_1(frame_type,
                          SAME_FRAME_START,
-                         false /* new_stack*/,
-                         false /* can_share_locals */,
-                         _prev_frame->locals(),
-                         _prev_frame->locals_size(),
                          _prev_frame->flags(),
+                         _prev_frame->locals_size(),
                          0/* stack_size*/,
+                         _prev_frame->locals(),
+                         false /* can_share_locals */,
                          CHECK_VERIFY_(_verifier, nullptr));
   }
   if (frame_type <= SAME_LOCALS_1_STACK_ITEM_FRAME_END) {
     // same_locals_1_stack_item_frame
     return parse_frame_1(frame_type,
                          SAME_LOCALS_1_STACK_ITEM_FRAME_START,
-                         true /* new_stack */,
-                         false /* can_share_locals */,
-                         _prev_frame->locals(),
-                         _prev_frame->locals_size(),
                          _prev_frame->flags(),
-                         1,
+                         _prev_frame->locals_size(),
+                         1, /* stack_size */
+                         _prev_frame->locals(),
+                         false /* can_share_locals */,
                          CHECK_VERIFY_(_verifier, nullptr));
   }
 
@@ -347,12 +345,11 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     // same_locals_1_stack_item_frame_extended
     return parse_frame_1(offset_delta,
                          0,
-                         true /* new_stack*/,
-                         false /* can_share_locals */,
-                         _prev_frame->locals(),
-                         _prev_frame->locals_size(),
                          _prev_frame->flags(),
+                         _prev_frame->locals_size(),
                          1 /* stack_size */,
+                         _prev_frame->locals(),
+                         false /* can_share_locals */,
                          CHECK_VERIFY_(_verifier, nullptr));
   }
 
@@ -377,7 +374,14 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
         }
       }
     }
-    return parse_frame_1(offset_delta, 0, false /* new_stack*/, false /* can_share_locals */, locals, new_length, flags, 0, CHECK_VERIFY_(_verifier, nullptr));
+    return parse_frame_1(offset_delta,
+                         0,
+                         flags,
+                         new_length,
+                         0 /* stack_size */,
+                         locals,
+                         false /* can_share_locals */,
+                         CHECK_VERIFY_(_verifier, nullptr));
   } else if (frame_type <= APPEND_FRAME_END) {
     // append_frame
     assert(frame_type >= APPEND_FRAME_START && frame_type <= APPEND_FRAME_END, "should be");
@@ -400,7 +404,14 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
     }
     check_verification_type_array_size(
       real_length, _max_locals, CHECK_VERIFY_(_verifier, nullptr));
-    return parse_frame_1(offset_delta, 0, false /* new_stack*/, true /* can_share_locals */, locals, real_length, flags, 0, CHECK_VERIFY_(_verifier, nullptr));
+    return parse_frame_1(offset_delta,
+                         0,
+                         flags,
+                         real_length,
+                         0 /* stack_size */,
+                         locals,
+                         true /* can_share_locals */,
+                         CHECK_VERIFY_(_verifier, nullptr));
   }
   if (frame_type == FULL_FRAME) {
     // full_frame
@@ -424,7 +435,14 @@ StackMapFrame* StackMapReader::next_helper(TRAPS) {
       real_locals_size, _max_locals, CHECK_VERIFY_(_verifier, nullptr));
 
     u2 stack_size = _stream->get_u2(CHECK_NULL);
-    return parse_frame_1(offset_delta, 0, true /* new_stack*/, true /* can_share_locals */, locals, real_locals_size, flags, stack_size, CHECK_VERIFY_(_verifier, nullptr));
+    return parse_frame_1(offset_delta,
+                         0,
+                         flags,
+                         real_locals_size,
+                         stack_size,
+                         locals,
+                         true /* can_share_locals */,
+                         CHECK_VERIFY_(_verifier, nullptr));
   }
 
   _stream->stackmap_format_error(
