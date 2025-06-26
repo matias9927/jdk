@@ -132,6 +132,8 @@ class StackMapReader : StackObj {
   bool _first;
 
   StackMapFrame* next_helper(TRAPS);
+  StackMapFrame* parse_frame_1(u2 frame_type, u1 frame_start, bool new_stack, bool can_share_locals, VerificationType* locals, int locals_size, u1 flags, int stack_size, TRAPS);
+  StackMapFrame* parse_frame_1(u2 frame_type, u1 frame_start, bool new_stack, bool can_share_locals, int stack_size, TRAPS);
   void check_offset(StackMapFrame* frame);
   void check_size(TRAPS);
   int32_t chop(VerificationType* locals, int32_t length, int32_t chops);
