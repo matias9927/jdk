@@ -132,7 +132,7 @@ class StackMapReader : StackObj {
   bool _first;
 
   StackMapFrame* next_helper(TRAPS);
-  StackMapFrame* parse_frame_1(u2 frame_type,
+  StackMapFrame* parse_frame(u2 frame_type,
                                              u1 frame_start,
                                              u1 flags,
                                              int locals_size,
